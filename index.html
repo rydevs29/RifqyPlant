@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RifqyPlant</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.png" type="image/png">
+  <meta name="theme-color" content="#6c5ce7">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6c5ce7;
+      --secondary: #8f94fb;
+      --bg: #0f0c29;
+      --glass: rgba(255, 255, 255, 0.1);
+      --text: #ffffff;
+      --radius: 28px;
+      --shadow: 0 20px 40px rgba(0,0,0,0.3);
+      --gap: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 90px;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: var(--gap); }
+
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: clamp(28px, 5vw, 38px);
+      background: linear-gradient(to right, #6c5ce7, #8f94fb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .subtitle { font-size: clamp(14px, 3.5vw, 17px); opacity: 0.9; }
+
+    .card {
+      backdrop-filter: blur(16px);
+      background: var(--glass);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: var(--gap);
+    }
+
+    .camera-container {
+      position: relative;
+      height: 300px;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      background: #000;
+    }
+    #video { width: 100%; height: 100%; object-fit: cover; }
+    #canvas { display: none; }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 18px;
+      cursor: pointer;
+      margin: 8px 0;
+    }
+    .btn-camera { background: #51cf66; color: white; }
+    .btn-scan { background: var(--secondary); color: white; }
+    .btn-save { background: #ffd43b; color: #333; }
+
+    .result {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px;
+    }
+    .result h3 { margin-bottom: 8px; }
+    .result p { font-size: 14px; opacity: 0.9; line-height: 1.5; }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(255,255,255,0.2);
+      display: flex;
+      padding: 10px 12px;
+      z-index: 1000;
+    }
+    .nav-item {
+      flex: 1;
+      text-align: center;
+      padding: 10px 6px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 18px;
+      margin: 0 6px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .nav-item.active {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .hidden { display: none; }
+
+    .plant-list {
+      display: grid;
+      gap: 12px;
+    }
+    .plant-item {
+      background: rgba(255,255,255,0.1);
+      padding: 14px;
+      border-radius: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .plant-item button {
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      width: 32px;
+      height: 32px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    .modal.hidden { display: none; }
+    .modal-content {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .close-btn {
+      background: linear-gradient(to right, #ff6b6b, #ee5a52);
+      color: white;
+      padding: 14px;
+      border: none;
+      border-radius: 18px;
+      width: 100%;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>RifqyPlant</h1>
+      <p class="subtitle">Foto tanaman → Info + Jadwal siram otomatis!</p>
+    </div>
+
+    <!-- HOME TAB -->
+    <div id="tab-home" class="tab-content">
+      <div class="card">
+        <div class="camera-container">
+          <video id="video" autoplay playsinline></video>
+          <canvas id="canvas"></canvas>
+        </div>
+
+        <button class="btn btn-camera" onclick="startCamera()">Buka Kamera</button>
+        <button class="btn btn-scan" onclick="captureAndScan()">Scan Tanaman</button>
+
+        <div id="result" class="result hidden">
+          <h3 id="plant-name">Monstera</h3>
+          <p id="plant-info">Siram setiap 3 hari • Cahaya sedang</p>
+          <button class="btn btn-save" onclick="savePlant()">Simpan ke MyPlants</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MY PLANTS -->
+    <div id="tab-myplants" class="tab-content hidden">
+      <div class="card">
+        <h3>Tanaman Saya</h3>
+        <div id="plant-list" class="plant-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home')">Home</div>
+    <div class="nav-item" onclick="switchTab('myplants')">MyPlants</div>
+    <div class="nav-item" onclick="openAbout()">About</div>
+  </div>
+
+  <!-- ABOUT MODAL -->
+  <div id="about-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>RifqyPlant v1.0</h3>
+      <p>Scan tanaman → Info perawatan otomatis.</p>
+      <p>Dibuat oleh <strong>Rifqy</strong> © 2025</p>
+      <p>Tech: Tesseract.js + PWA + Offline</p>
+      <button class="close-btn" onclick="closeAbout()">Tutup</button>
+    </div>
+  </div>
+
+  <script>
+    let video, canvas, ctx, stream;
+    const plantsDB = {
+      "monstera": { name: "Monstera", water: "Setiap 3 hari", light: "Sedang", temp: "20-28°C" },
+      "pothos": { name: "Pothos", water: "Setiap 5 hari", light: "Rendah", temp: "18-25°C" },
+      "snake plant": { name: "Lidah Mertua", water: "Setiap 10 hari", light: "Rendah", temp: "15-30°C" },
+      "aloe vera": { name: "Lidah Buaya", water: "Setiap 14 hari", light: "Tinggi", temp: "20-30°C" }
+    };
+
+    function startCamera() {
+      video = document.getElementById('video');
+      canvas = document.getElementById('canvas');
+      ctx = canvas.getContext('2d');
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(s => {
+          stream = s;
+          video.srcObject = stream;
+          video.play();
+        });
+    }
+
+    function captureAndScan() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const image = canvas.toDataURL('image/jpeg');
+
+      Tesseract.recognize(image, 'eng', { logger: m => console.log(m) })
+        .then(({ data: { text } }) => {
+          const name = findPlant(text.toLowerCase());
+          if (name) {
+            document.getElementById('plant-name').textContent = plantsDB[name].name;
+            document.getElementById('plant-info').textContent = 
+              `${plantsDB[name].water} • ${plantsDB[name].light} • ${plantsDB[name].temp}`;
+            document.getElementById('result').classList.remove('hidden');
+          } else {
+            alert('Tanaman tidak ditemukan. Coba foto lebih jelas!');
+          }
+        });
+    }
+
+    function findPlant(text) {
+      for (let key in plantsDB) {
+        if (text.includes(key)) return key;
+      }
+      return null;
+    }
+
+    function savePlant() {
+      const name = document.getElementById('plant-name').textContent;
+      const info = document.getElementById('plant-info').textContent;
+      const plants = JSON.parse(localStorage.getItem('rifqyPlants')) || [];
+      if (!plants.find(p => p.name === name)) {
+        plants.push({ name, info, savedAt: new Date().toLocaleDateString('id-ID') });
+        localStorage.setItem('rifqyPlants', JSON.stringify(plants));
+        alert(`${name} disimpan!`);
+        updatePlantList();
+      } else {
+        alert('Sudah ada di MyPlants!');
+      }
+    }
+
+    function updatePlantList() {
+      const list = document.getElementById('plant-list');
+      const plants = JSON.parse(localStorage.getItem('rifqyPlants')) || [];
+      list.innerHTML = '';
+      plants.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'plant-item';
+        div.innerHTML = `
+          <div>
+            <strong>${p.name}</strong><br>
+            <small>${p.info} • ${p.savedAt}</small>
+          </div>
+          <button onclick="removePlant(${i})">×</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function removePlant(index) {
+      if (confirm('Hapus tanaman ini?')) {
+        const plants = JSON.parse(localStorage.getItem('rifqyPlants')) || [];
+        plants.splice(index, 1);
+        localStorage.setItem('rifqyPlants', JSON.stringify(plants));
+        updatePlantList();
+      }
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => {
+        if (n.textContent.trim() === (tab === 'home' ? 'Home' : 'MyPlants')) n.classList.add('active');
+      });
+      if (tab === 'myplants') updatePlantList();
+    }
+
+    function openAbout() {
+      document.getElementById('about-modal').classList.remove('hidden');
+    }
+
+    function closeAbout() {
+      document.getElementById('about-modal').classList.add('hidden');
+    }
+
+    // INIT
+    window.onload = () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+      }
+    };
+  </script>
+</body>
+</html>
